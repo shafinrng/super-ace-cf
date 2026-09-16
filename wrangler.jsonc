@@ -1,0 +1,25 @@
+/**
+ * Wrangler configuration — super-ace-cf (play-money edition).
+ *
+ * Single Worker serves everything:
+ *  - /api/*  → Worker code (game engine, auth, D1 in later phases)
+ *  - everything else → static assets from ./public (the game frontend)
+ *
+ * Bindings for D1 / Durable Objects will be added in later phases,
+ * per the agreed migration plan (steps 3-7). Nothing real-money:
+ * virtual credits only, no payments, no KYC, no RTP overrides.
+ */
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "super-ace-cf",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-01-01",
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  }
+}
