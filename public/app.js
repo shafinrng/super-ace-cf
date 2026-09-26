@@ -537,6 +537,11 @@ async function doSpin(isFreeSpin) {
   st.spinDeg += 1080;
   $("spin-img").style.transform = `translate(-50%, -50%) rotate(${st.spinDeg}deg)`;
 
+  // Auto spins: the reference consumes one count per auto-initiated spin
+  // and pauses the loop while a bonus round plays (free spins run on
+  // their own driver, then base auto resumes with the remaining count).
+  const isAutoSpin = !isFreeSpin && st.autoLeft > 0;
+
   try {
     const body = isFreeSpin ? {} : { betCents: Math.round(st.bet * 100) };
     const r = await api("POST", "/api/game/spin", body);
@@ -598,11 +603,31 @@ async function doSpin(isFreeSpin) {
     toast(e.message || "Network error.", "error");
   } finally {
     setSpinning(false);
+    if (isAutoSpin) st.autoLeft = Math.max(0, st.autoLeft - 1);
     setAutoOverlay();
     updateWallet();
     st.lock = false;
-    if (st.freeMode) scheduleNextFreeSpin(400);
+    if (st.freeMode) {
+      scheduleNextFreeSpin(400);
+    } else if (st.autoLeft > 0) {
+      scheduleNextAutoSpin(T().autoBase);
+    }
   }
+}
+
+// Continues the base-game auto-spin loop: one spin per tick until the
+// count runs out (or the user cancels by clicking SPIN / a bonus starts).
+function scheduleNextAutoSpin(ms, attempt = 0) {
+  if (st.autoLeft <= 0 || st.freeMode) return;
+  setTimeout(() => {
+    if (st.autoLeft <= 0 || st.freeMode) return;
+    if (st.spinning || st.lock) {
+      // Something else holds the lock — retry instead of dying silently.
+      if (attempt < 5) scheduleNextAutoSpin(600, attempt + 1);
+      return;
+    }
+    doSpin(false);
+  }, ms);
 }
 
 function scheduleNextFreeSpin(ms) {
