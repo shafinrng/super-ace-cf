@@ -23,10 +23,8 @@
     {
       "binding": "DB",
       "database_name": "super-ace-db",
-      // Placeholder until `wrangler d1 create super-ace-db` is run on a
-      // machine with an authenticated wrangler (see README, Phase 3).
-      // Local dev (`wrangler dev` / `d1 execute --local`) ignores it.
-      "database_id": "00000000-0000-0000-0000-000000000000"
+      // Real database on the account (created 2026-09-26, region APAC).
+      "database_id": "10ca90db-1606-4eb0-80c4-b41593ec71c3"
     }
   ],
   "workers_dev": true,
