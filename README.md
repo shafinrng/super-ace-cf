@@ -102,6 +102,28 @@ npm run test:auth         # password/session primitive checks
 - **Local setup:** also run
   `npx wrangler d1 execute super-ace-db --local --file migrations/0003_jackpot_columns.sql`
 
+## Phase 6 — frontend port (static, no build step)
+
+- `public/index.html` + `public/style.css` + `public/app.js`: the
+  reference JDB/JILI-style mobile layout (430px column, gold/black
+  theme, real symbol art in `public/assets/`) as a dependency-free
+  static client served by the same Worker.
+- **Test credentials from the reference login screen are stripped** —
+  registration and login are plain username/password. There are no
+  payment/KYC references anywhere.
+- Full game flow: register/login → spins with the landed-grid /
+  golden-card-flip / cascade-refill animation sequence → win, retrigger
+  and Free-Spins popups → server-driven bonus rounds (auto-played,
+  resumable after a page reload) → jackpot banners. Turbo, bet ladder
+  (1.00–10,000.00 credits), auto-spin, free top-up button, provably-fair
+  panel (seed hash + client seed + nonce, one-click session rotation
+  with seed reveal), jackpot drawer.
+- Live data: presence WebSocket (`/api/presence`) drives the online
+  counter and pushes jackpot pools every tick; falls back to polling
+  `/api/jackpots` when the socket is down.
+- The client is a pure renderer — every outcome, balance and bonus-round
+  state comes from the Worker API.
+
 ## Phase checklist
 
 - [x] Phase 1: scaffold + hello-world deploy pipeline
@@ -109,5 +131,5 @@ npm run test:auth         # password/session primitive checks
 - [x] Phase 3: D1 schema + auth + virtual-credit balance
 - [x] Phase 4: spin endpoint (single D1 batch transaction, provably-fair seeds per spin)
 - [x] Phase 5: Durable Objects (jackpot tiers, online presence)
-- [ ] Phase 6: frontend port
+- [x] Phase 6: frontend port
 - [ ] Phase 7: final deploy + custom domain

@@ -2,39 +2,148 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>super-ace-cf — scaffold check</title>
-    <style>
-      body {
-        margin: 0;
-        min-height: 100vh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: radial-gradient(circle at 50% 30%, #1a0a06, #0d0503 70%);
-        color: #fff1a8;
-        font-family: Arial, sans-serif;
-        text-align: center;
-      }
-      .card {
-        border: 2px solid #d4af37;
-        border-radius: 16px;
-        padding: 40px 32px;
-        background: linear-gradient(180deg, #2a1510, #1a0a06);
-        max-width: 420px;
-      }
-      h1 { margin: 0 0 8px; }
-      p { color: #d4af37; font-size: 14px; margin: 4px 0; }
-      code { color: #fef08a; }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d0503" />
+    <title>Super Ace — Play Money</title>
+    <link rel="stylesheet" href="/style.css" />
   </head>
   <body>
-    <div class="card">
-      <h1>super-ace-cf</h1>
-      <p>Phase 1 scaffold is live.</p>
-      <p>Static assets serving: <strong>working</strong> (this page).</p>
-      <p>API check: <a href="/api/hello" style="color:#fef08a">/api/hello</a></p>
-      <p>Play-money demo — virtual credits only.</p>
+    <!-- ============ AUTH VIEW ============ -->
+    <div id="auth-view" class="auth-view hidden">
+      <div class="auth-card">
+        <h1 class="auth-title">Super Ace</h1>
+        <p class="auth-sub">Play-money demo &mdash; virtual credits only</p>
+        <div class="auth-tabs">
+          <button id="tab-login" class="auth-tab active">LOGIN</button>
+          <button id="tab-register" class="auth-tab">REGISTER</button>
+        </div>
+        <input id="auth-username" class="auth-input" placeholder="Username" autocomplete="username" maxlength="20" />
+        <input id="auth-password" class="auth-input" type="password" placeholder="Password (min 8 chars)" autocomplete="current-password" maxlength="128" />
+        <button id="auth-go" class="auth-go">LOGIN TO PLAY</button>
+        <div id="auth-message" class="auth-message"></div>
+      </div>
     </div>
+
+    <!-- ============ GAME VIEW ============ -->
+    <div id="game-view" class="game-view hidden">
+      <div class="phone">
+        <div class="bg-glow"></div>
+
+        <!-- top ticker -->
+        <div class="ticker">
+          <span id="online-count" class="online-chip">&#9679; 1</span>
+          <span class="jp-chip jp-grand" id="chip-GRAND">G 0.00</span>
+          <span class="jp-chip jp-major" id="chip-MAJOR">M 0.00</span>
+          <span class="jp-chip jp-minor" id="chip-MINOR">m 0.00</span>
+          <span class="jp-chip jp-mini" id="chip-MINI">&#8226; 0.00</span>
+          <button id="btn-logout" class="logout-btn">EXIT</button>
+        </div>
+
+        <!-- side tabs -->
+        <button id="jp-tab" class="jp-tab">JP</button>
+        <div id="fs-tab" class="fs-tab hidden">
+          <div class="fs-tab-label">FREE SPINS</div>
+          <div id="fs-tab-count" class="fs-tab-count">0</div>
+        </div>
+
+        <!-- multiplier bar -->
+        <div class="mult-bar-wrap">
+          <div id="mult-bar" class="mult-bar"></div>
+        </div>
+
+        <!-- grid -->
+        <div class="grid-wrap">
+          <div id="grid-frame" class="grid-frame">
+            <div id="grid" class="grid"></div>
+          </div>
+        </div>
+
+        <!-- controls -->
+        <div class="controls">
+          <div class="controls-row">
+            <button id="btn-turbo" class="ctl-btn" title="Turbo">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#d4af37"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            </button>
+            <button id="btn-bet-down" class="ctl-btn">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d4af37" stroke-width="3" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <button id="btn-spin" class="spin-btn">
+              <img id="spin-img" src="/assets/symbols/spin-button.webp" alt="SPIN" />
+              <div id="spin-overlay-auto" class="spin-overlay hidden"></div>
+            </button>
+            <button id="btn-bet-up" class="ctl-btn">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d4af37" stroke-width="3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <button id="btn-auto" class="ctl-btn" title="Auto spins">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d4af37" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.3"/></svg>
+            </button>
+          </div>
+
+          <div class="wallet-strip">
+            <div class="wallet-cell">
+              <div class="wallet-label">WALLET</div>
+              <div class="wallet-row">
+                <div id="wallet-balance" class="wallet-value win-text">0.00</div>
+                <button id="btn-topup" class="topup-btn" title="Free top-up">+</button>
+              </div>
+            </div>
+            <div id="wallet-bet-cell" class="wallet-cell wallet-cell-mid">
+              <div class="wallet-label gold">BET</div>
+              <div id="wallet-bet" class="wallet-value">1.00</div>
+            </div>
+            <div class="wallet-cell">
+              <div class="wallet-label">WIN</div>
+              <div id="wallet-win" class="wallet-value">0.00</div>
+            </div>
+          </div>
+
+          <button id="btn-fair" class="fair-btn">PROVABLY FAIR &#9432;</button>
+        </div>
+
+        <!-- ============ popups ============ -->
+        <div id="popup-layer" class="popup-layer hidden"></div>
+
+        <!-- bet panel -->
+        <div id="bet-panel" class="sheet-backdrop hidden">
+          <div class="sheet">
+            <div class="sheet-title">SELECT BET</div>
+            <div id="bet-options" class="sheet-grid"></div>
+          </div>
+        </div>
+
+        <!-- auto panel -->
+        <div id="auto-panel" class="sheet-backdrop hidden">
+          <div class="sheet">
+            <div class="sheet-title purple">AUTO SPINS</div>
+            <div id="auto-options" class="sheet-grid"></div>
+          </div>
+        </div>
+
+        <!-- jackpot drawer -->
+        <div id="jp-drawer" class="jp-drawer hidden">
+          <div class="jp-drawer-title">JACKPOTS</div>
+          <div id="jp-drawer-list" class="jp-drawer-list"></div>
+          <button id="jp-close" class="jp-close">CLOSE</button>
+        </div>
+
+        <!-- fairness panel -->
+        <div id="fair-panel" class="sheet-backdrop hidden">
+          <div class="sheet">
+            <div class="sheet-title">PROVABLY FAIR</div>
+            <div class="fair-body">
+              <p>Every spin's outcome is derived from<br /><b>HMAC-SHA256(serverSeed, clientSeed:nonce)</b></p>
+              <div class="fair-row"><span>server seed (SHA-256)</span><code id="fair-hash">&mdash;</code></div>
+              <div class="fair-row"><span>client seed</span><code id="fair-client">&mdash;</code></div>
+              <div class="fair-row"><span>last nonce</span><code id="fair-nonce">&mdash;</code></div>
+              <p class="fair-note">When the session is rotated, the server seed is revealed and every spin can be replayed and verified bit-for-bit.</p>
+              <button id="fair-rotate" class="fair-rotate">ROTATE SESSION (REVEAL OLD SEED)</button>
+              <div id="fair-revealed" class="fair-revealed"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/app.js"></script>
   </body>
 </html>
