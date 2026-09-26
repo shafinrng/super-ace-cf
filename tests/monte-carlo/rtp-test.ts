@@ -5,11 +5,13 @@
 //  1. Scatters are counted on the FINAL grid (after cascades), matching
 //     the SuperAceGame.ts fix — cascades can drop new scatters in during
 //     refills, and those count toward triggering/retriggering.
-//  2. Free Spins bonus rounds are simulated with the SAME true cumulative
-//     cap as page.tsx (MAX_FREE_SPINS_TOTAL) — once that many spins have
-//     EVER been granted in a bonus round, no further retriggers happen,
-//     regardless of how many more scatters land. This must match the
-//     frontend's cap logic exactly, or this test understates real risk.
+//  2. Free Spins bonus rounds are played through the REAL production state
+//     machine (src/engine/BonusRound.ts) with its true cumulative cap
+//     (MAX_FREE_SPINS_TOTAL) — once that many spins have EVER been granted
+//     in a bonus round, no further retriggers happen, regardless of how
+//     many more scatters land. This is the same module the spin endpoint
+//     uses from Phase 4 on, so the test measures shipped behavior, not a
+//     copy of it. Exact cap semantics are pinned in tests/bonus-round-test.ts.
 //
 // Ported from super-ace-platform services/game-engine/tests/monte-carlo/rtp-test.ts
 // with only the RTP-bias argument removed (the bias hook no longer exists).
@@ -27,10 +29,11 @@ import {
   FREE_SPINS_AWARDED,
 } from "../../src/engine/constants";
 import { Symbol } from "../../src/types/game";
+import { applyFreeSpinResult, createBonusRound } from "../../src/engine/BonusRound";
+import { MAX_FREE_SPINS_TOTAL } from "../../src/engine/constants";
 
 const SPIN_COUNT = 200_000;
 const BET_AMOUNT = 1;
-const MAX_FREE_SPINS_TOTAL = 30; // MUST match MAX_FREE_SPINS_TOTAL in the game client
 
 function countScatters(grid: Symbol[][]): number {
   return grid.flat().filter((s) => s === "SCATTER").length;
@@ -58,32 +61,27 @@ function evaluateSpin(isFreeSpinMode: boolean): { finalGrid: Symbol[][]; totalWi
   return { finalGrid, totalWin: initialWinAmount + cascadeWinAmount };
 }
 
-// Simulates one full bonus round, including retriggers, capped exactly
-// like the frontend's freeSpinsTotalAwardedRef logic.
+// Simulates one full bonus round, including retriggers, by driving the
+// real production state machine (src/engine/BonusRound.ts).
 function runBonusRound(): { totalWin: number; spinsUsed: number; hitCap: boolean } {
-  let remaining = FREE_SPINS_AWARDED;
-  let totalAwarded = FREE_SPINS_AWARDED;
-  let spinsUsed = 0;
-  let totalWin = 0;
+  let round = createBonusRound();
   let hitCap = false;
 
-  while (remaining > 0) {
+  while (round.remaining > 0) {
     const { finalGrid, totalWin: spinWin } = evaluateSpin(true);
-    totalWin += spinWin;
-    spinsUsed++;
-    remaining--;
-
     const scatterCount = countScatters(finalGrid);
-    if (scatterCount >= SCATTER_TRIGGER_COUNT) {
-      const newTotal = Math.min(totalAwarded + FREE_SPINS_AWARDED, MAX_FREE_SPINS_TOTAL);
-      const actualRetrigger = newTotal - totalAwarded;
-      totalAwarded = newTotal;
-      remaining += actualRetrigger;
-      if (actualRetrigger < FREE_SPINS_AWARDED) hitCap = true;
+    const result = applyFreeSpinResult(round, {
+      totalWin: spinWin,
+      freeSpinsAwarded: scatterCount >= SCATTER_TRIGGER_COUNT ? FREE_SPINS_AWARDED : 0,
+    });
+    round = result.state;
+    // A retrigger was attempted but the cap blocked (part of) the award.
+    if (scatterCount >= SCATTER_TRIGGER_COUNT && result.retriggered < FREE_SPINS_AWARDED) {
+      hitCap = true;
     }
   }
 
-  return { totalWin, spinsUsed, hitCap };
+  return { totalWin: round.totalWin, spinsUsed: round.spinsUsed, hitCap };
 }
 
 function runSimulation() {

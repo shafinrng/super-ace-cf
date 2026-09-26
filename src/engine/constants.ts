@@ -23,3 +23,8 @@ export const MULTIPLIER_STEPS = [1, 2, 3, 5];
 export const FREE_SPIN_MULTIPLIER_STEPS = [2, 4, 6, 10];
 export const SCATTER_TRIGGER_COUNT = 3;
 export const FREE_SPINS_AWARDED = 10;
+// Hard ceiling on free spins EVER granted in a single bonus round,
+// including the initial award. Matches MAX_FREE_SPINS_TOTAL in the game
+// client — once hit, no further retriggers are granted for the rest of
+// the round, even if more scatters land.
+export const MAX_FREE_SPINS_TOTAL = 30;

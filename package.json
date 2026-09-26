@@ -7,6 +7,8 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "test:monte-carlo": "tsx tests/monte-carlo/rtp-test.ts",
+    "test:bonus-round": "tsx tests/bonus-round-test.ts",
+    "test": "npm run test:bonus-round && npm run test:monte-carlo",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

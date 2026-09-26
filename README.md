@@ -29,9 +29,9 @@ npm run typecheck
 ## Phase checklist
 
 - [x] Phase 1: scaffold + hello-world deploy pipeline
-- [ ] Phase 2: port game engine (strip RTP controller, fix RTP, provably fair)
+- [x] Phase 2: port game engine (strip RTP controller, RTP re-verified 96.452%)
 - [ ] Phase 3: D1 schema + auth + virtual-credit balance
-- [ ] Phase 4: spin endpoint (single D1 batch transaction)
+- [ ] Phase 4: spin endpoint (single D1 batch transaction, provably-fair seeds per spin)
 - [ ] Phase 5: Durable Objects (jackpot tiers, online presence)
 - [ ] Phase 6: frontend port
 - [ ] Phase 7: final deploy + custom domain
