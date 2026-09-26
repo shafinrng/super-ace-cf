@@ -132,4 +132,16 @@ npm run test:auth         # password/session primitive checks
 - [x] Phase 4: spin endpoint (single D1 batch transaction, provably-fair seeds per spin)
 - [x] Phase 5: Durable Objects (jackpot tiers, online presence)
 - [x] Phase 6: frontend port
-- [ ] Phase 7: final deploy + custom domain
+- [x] Phase 7: final deploy — **live at https://super-ace-cf.agenticmarketingpro.workers.dev** (deployed 2026-09-26, version b8847d7c; custom domain not needed yet)
+
+## Live deployment notes
+
+- Deploy: `npx wrangler deploy` (Worker + static assets + Durable Object
+  migration v1 in one shot).
+- Remote D1 (`super-ace-db`, APAC) has all three migrations applied —
+  apply future migrations with
+  `npx wrangler d1 execute super-ace-db --remote --file migrations/…`
+  BEFORE the next deploy.
+- Verified live: health/hello/jackpots endpoints, real registration,
+  provably-fair spin with jackpot contribution committed on the live DO,
+  presence WebSocket over wss, full UI flow in a browser.
