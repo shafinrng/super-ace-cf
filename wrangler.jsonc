@@ -5,9 +5,9 @@
  *  - /api/*  → Worker code (game engine, auth, D1 in later phases)
  *  - everything else → static assets from ./public (the game frontend)
  *
- * Bindings for D1 / Durable Objects will be added in later phases,
- * per the agreed migration plan (steps 3-7). Nothing real-money:
- * virtual credits only, no payments, no KYC, no RTP overrides.
+ * Phase 3 adds the D1 binding (virtual-credit balances + auth). Durable
+ * Objects arrive in Phase 5. Nothing real-money: virtual credits only,
+ * no payments, no KYC, no RTP overrides.
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
@@ -19,6 +19,16 @@
     "directory": "./public",
     "binding": "ASSETS"
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "super-ace-db",
+      // Placeholder until `wrangler d1 create super-ace-db` is run on a
+      // machine with an authenticated wrangler (see README, Phase 3).
+      // Local dev (`wrangler dev` / `d1 execute --local`) ignores it.
+      "database_id": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
   "workers_dev": true,
   "observability": {
     "enabled": true
