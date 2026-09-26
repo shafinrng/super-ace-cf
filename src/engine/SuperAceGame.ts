@@ -6,18 +6,23 @@ import { revealGoldenCards } from "./GoldenCard";
 import { SCATTER_TRIGGER_COUNT, FREE_SPINS_AWARDED, MULTIPLIER_STEPS, FREE_SPIN_MULTIPLIER_STEPS } from "./constants";
 import { stopsToGrid } from "./ReelStrips";
 
+// rng: the spin's deterministic random stream (provably fair — see
+// src/engine/rng.ts). Callers pass createSeedRng(serverSeed, clientSeed,
+// nonce) in production; tests pass an equivalent uniform source. Every
+// draw (initial grid + cascade refills) comes from this one stream.
+
 function countScatters(grid: Symbol[][]): number {
   return grid.flat().filter(s => s === "SCATTER").length;
 }
 
-export async function spin(req: SpinRequest): Promise<SpinResult> {
+export async function spin(req: SpinRequest, rng: () => number): Promise<SpinResult> {
   const { userId, betAmount, isFreeSpinMode = false, freeSpinMultiplier = 1 } = req;
   const steps = isFreeSpinMode ? FREE_SPIN_MULTIPLIER_STEPS : MULTIPLIER_STEPS;
-  const landedGrid = generateGrid();
+  const landedGrid = generateGrid(rng);
   const { revealedGrid: grid, goldenPositions } = revealGoldenCards(landedGrid);
   const initialMultiplier = isFreeSpinMode ? freeSpinMultiplier : steps[0];
   const initialWins = calculateWins(grid, betAmount, initialMultiplier);
-  const cascades = runCascades(grid, betAmount, isFreeSpinMode);
+  const cascades = runCascades(grid, betAmount, isFreeSpinMode, rng);
   const cascadeWin = cascades.reduce((sum, c) => sum + c.wins.reduce((s, w) => s + w.payout, 0), 0);
   const initialWin = initialWins.reduce((sum, w) => sum + w.payout, 0);
   const totalWin = initialWin + cascadeWin;
@@ -49,14 +54,15 @@ export async function calculateWinFromStops(
   betAmount: number,
   playerId: string,
   isFreeSpinMode: boolean = false,
-  freeSpinMultiplier: number = 1
+  freeSpinMultiplier: number = 1,
+  rng: () => number
 ): Promise<SpinResult> {
   const steps = isFreeSpinMode ? FREE_SPIN_MULTIPLIER_STEPS : MULTIPLIER_STEPS;
   const landedGrid = stopsToGrid(stops);
   const { revealedGrid: grid, goldenPositions } = revealGoldenCards(landedGrid);
   const initialMultiplier = isFreeSpinMode ? freeSpinMultiplier : steps[0];
   const initialWins = calculateWins(grid, betAmount, initialMultiplier);
-  const cascades = runCascades(grid, betAmount, isFreeSpinMode);
+  const cascades = runCascades(grid, betAmount, isFreeSpinMode, rng);
   const cascadeWin = cascades.reduce((sum, c) => sum + c.wins.reduce((s, w) => s + w.payout, 0), 0);
   const initialWin = initialWins.reduce((sum, w) => sum + w.payout, 0);
   const totalWin = initialWin + cascadeWin;

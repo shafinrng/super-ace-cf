@@ -52,12 +52,38 @@ npm run test:auth         # password/session primitive checks
   `npx wrangler d1 execute super-ace-db --remote --file migrations/0001_users_sessions.sql`
   before the next deploy.
 
+## Phase 4 — provably-fair spin endpoint
+
+- **Schema:** `migrations/0002_game_sessions_spins.sql` — `game_sessions`
+  (commit-reveal seed pairs, one active per user), `spins` (per-spin seed
+  storage + full result JSON, `UNIQUE(session_id, nonce)`),
+  `bonus_rounds` (server-side Free Spins state, one per user).
+- **Endpoints:** `POST /api/game/session` (rotate — closes the previous
+  session and **reveals its server seed**), `GET /api/game/state`,
+  `POST /api/game/spin` (`{"betCents": 100..1000000}`; while a bonus
+  round is active the spin is a free spin and the bet is locked to the
+  triggering amount).
+- **One transaction per spin:** session nonce update + spin insert +
+  balance debit/credit + bonus-round state change run as a single D1
+  batch. Races lose structurally: a duplicate nonce violates
+  `UNIQUE(session_id, nonce)` and an overdraw violates the
+  `balance_cents >= 0` CHECK — either aborts the whole batch.
+- **Fairness (commit-reveal):** a session's `server_seed` is committed
+  as `server_seed_hash` at creation; the spin's entire random stream is
+  `HMAC-SHA-256(serverSeed, "clientSeed:nonce:counter")`
+  (`src/engine/rng.ts` — dependency-free sync SHA-256/HMAC, verified
+  against FIPS 180 + RFC 4231 vectors). Rotating the session reveals the
+  server seed so every stored spin replays exactly. No RTP-bias hook
+  exists anywhere: outcomes are a pure function of the seeds.
+- **Local setup:** also run
+  `npx wrangler d1 execute super-ace-db --local --file migrations/0002_game_sessions_spins.sql`
+
 ## Phase checklist
 
 - [x] Phase 1: scaffold + hello-world deploy pipeline
 - [x] Phase 2: port game engine (strip RTP controller, RTP re-verified 96.452%)
 - [x] Phase 3: D1 schema + auth + virtual-credit balance
-- [ ] Phase 4: spin endpoint (single D1 batch transaction, provably-fair seeds per spin)
+- [x] Phase 4: spin endpoint (single D1 batch transaction, provably-fair seeds per spin)
 - [ ] Phase 5: Durable Objects (jackpot tiers, online presence)
 - [ ] Phase 6: frontend port
 - [ ] Phase 7: final deploy + custom domain

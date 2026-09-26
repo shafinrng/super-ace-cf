@@ -4,7 +4,7 @@ import { generateGrid } from "./ReelGenerator";
 import { calculateWins } from "./WinCalculator";
 import { MULTIPLIER_STEPS, FREE_SPIN_MULTIPLIER_STEPS } from "./constants";
 
-function removeWinningSymbols(grid: Symbol[][], wins: WinResult[]): Symbol[][] {
+function removeWinningSymbols(grid: Symbol[][], wins: WinResult[], rng: () => number): Symbol[][] {
   const newGrid = grid.map(col => [...col]) as Symbol[][];
   const toRemove = new Set(wins.flatMap(w => w.positions.map(([r, c]) => `${r},${c}`)));
 
@@ -15,7 +15,7 @@ function removeWinningSymbols(grid: Symbol[][], wins: WinResult[]): Symbol[][] {
 
   for (let reel = 0; reel < newGrid.length; reel++) {
     const filled = newGrid[reel].filter(s => s !== null);
-    const newSymbols = generateGrid()[reel].slice(0, newGrid[reel].length - filled.length);
+    const newSymbols = generateGrid(rng)[reel].slice(0, newGrid[reel].length - filled.length);
     newGrid[reel] = [...newSymbols, ...filled];
   }
 
@@ -28,7 +28,8 @@ function removeWinningSymbols(grid: Symbol[][], wins: WinResult[]): Symbol[][] {
 export function runCascades(
   initialGrid: Symbol[][],
   betAmount: number,
-  isFreeSpinMode: boolean
+  isFreeSpinMode: boolean,
+  rng: () => number
 ): CascadeResult[] {
   const cascades: CascadeResult[] = [];
   const steps = isFreeSpinMode ? FREE_SPIN_MULTIPLIER_STEPS : MULTIPLIER_STEPS;
@@ -43,7 +44,7 @@ export function runCascades(
     if (wins.length === 0) break;
 
     const removedPositions = wins.flatMap(w => w.positions);
-    const newGrid = removeWinningSymbols(currentGrid, wins);
+    const newGrid = removeWinningSymbols(currentGrid, wins, rng);
 
     cascades.push({ removedPositions, newGrid, wins, multiplier });
     currentGrid = newGrid;

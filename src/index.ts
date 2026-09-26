@@ -1,14 +1,16 @@
 import { Env } from "./types/env";
 import { handleLogin, handleLogout, handleMe, handleRegister } from "./routes/auth";
 import { handleTopup } from "./routes/wallet";
+import { handleCreateSession, handleGameState, handleSpin } from "./routes/game";
 
 /**
  * Route table: POST/GET exact matches under /api/*; everything else
  * falls through to the static asset server (the game frontend).
  *
- * Phase 4 will add POST /api/spin (session + spin + balance update in
- * one D1 batch, provably-fair seeds stored per spin). Phase 5 adds
- * Durable Object-backed jackpot and presence routes.
+ * Phase 4 adds the provably-fair spin endpoint: each spin runs session
+ * + spin + balance updates as one D1 batch transaction with per-spin
+ * seed storage. Phase 5 adds Durable Object-backed jackpot and
+ * presence routes.
  */
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -19,7 +21,7 @@ export default {
       return Response.json({
         ok: true,
         service: "super-ace-cf",
-        phase: "3 - D1 schema + auth",
+        phase: "4 - provably-fair spin endpoint",
         message: "Worker pipeline is alive. Static assets + API routing working.",
         time: new Date().toISOString(),
       });
@@ -46,6 +48,16 @@ export default {
     }
     if (method === "POST" && url.pathname === "/api/wallet/topup") {
       return handleTopup(request, env);
+    }
+
+    if (method === "POST" && url.pathname === "/api/game/session") {
+      return handleCreateSession(request, env);
+    }
+    if (method === "GET" && url.pathname === "/api/game/state") {
+      return handleGameState(request, env);
+    }
+    if (method === "POST" && url.pathname === "/api/game/spin") {
+      return handleSpin(request, env);
     }
 
     // Everything else falls through to the static asset server.
