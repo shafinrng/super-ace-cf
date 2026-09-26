@@ -41,10 +41,8 @@ async function readBody<T extends Record<string, unknown>>(request: Request): Pr
   }
 }
 
-/** Resolves the caller from bearer token or session cookie; null = unauthenticated. */
-export async function requireUser(request: Request, env: Env): Promise<AuthedUser | null> {
-  const token = getSessionToken(request);
-  if (!token) return null;
+/** Resolves a raw session token to its user; null when unknown/expired. */
+export async function lookupUserByToken(token: string, env: Env): Promise<AuthedUser | null> {
   const tokenHash = await sha256Hex(token);
   const row = await env.DB.prepare(
     `SELECT u.id, u.username, u.balance_cents
@@ -55,6 +53,13 @@ export async function requireUser(request: Request, env: Env): Promise<AuthedUse
     .first<{ id: string; username: string; balance_cents: number }>();
   if (!row) return null;
   return { id: row.id, username: row.username, balanceCents: row.balance_cents };
+}
+
+/** Resolves the caller from bearer token or session cookie; null = unauthenticated. */
+export async function requireUser(request: Request, env: Env): Promise<AuthedUser | null> {
+  const token = getSessionToken(request);
+  if (!token) return null;
+  return lookupUserByToken(token, env);
 }
 
 export async function handleRegister(request: Request, env: Env): Promise<Response> {

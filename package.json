@@ -10,7 +10,8 @@
     "test:bonus-round": "tsx tests/bonus-round-test.ts",
     "test:auth": "tsx tests/auth-test.ts",
     "test:provably-fair": "tsx tests/provably-fair-test.ts",
-    "test": "npm run test:bonus-round && npm run test:auth && npm run test:provably-fair && npm run test:monte-carlo",
+    "test:jackpot": "tsx tests/jackpot-test.ts",
+    "test": "npm run test:bonus-round && npm run test:auth && npm run test:provably-fair && npm run test:jackpot && npm run test:monte-carlo",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

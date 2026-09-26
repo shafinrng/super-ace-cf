@@ -78,12 +78,36 @@ npm run test:auth         # password/session primitive checks
 - **Local setup:** also run
   `npx wrangler d1 execute super-ace-db --local --file migrations/0002_game_sessions_spins.sql`
 
+## Phase 5 — Durable Objects (jackpots + presence)
+
+- **JackpotDO** (`src/do/JackpotDO.ts`, global singleton): owns the four
+  progressive pools (Grand 50,000 / Major 10,000 / Minor 1,000 / Mini
+  100.00 credits at seed). Every base spin contributes **1% of the bet**
+  to all pools; per-spin hit odds are fixed bands on one extra draw from
+  the spin's seed stream (Grand 1/100k, Major 1/20k, Minor 1/4k, Mini
+  1/2,000 — same reproducible stream as the game outcome). A hit pays
+  the pool value, then resets that tier to its seed.
+- **Ordering:** the spin endpoint *peeks* the pools → credits a jackpot
+  win inside the same D1 batch as the spin (player is always paid) →
+  *commits* the contribution/reset to the DO only after the batch.
+  Crash windows can only drift the pot upward; never short a player.
+- **PresenceDO** (`src/do/PresenceDO.ts`, global singleton): hibernatable
+  WebSocket at `GET /api/presence` (auth via session cookie or
+  `?token=`, since browsers cannot set WS headers). Broadcasts the
+  **distinct-user online count** on joins/leaves and pushes live jackpot
+  pools on a 10-second alarm that cancels itself when nobody listens.
+- **Endpoints:** `GET /api/jackpots` (public: pool values + last 10
+  winners). Jackpots are base-game only; total return to players is the
+  game RTP plus the jackpot pools (all virtual credits).
+- **Local setup:** also run
+  `npx wrangler d1 execute super-ace-db --local --file migrations/0003_jackpot_columns.sql`
+
 ## Phase checklist
 
 - [x] Phase 1: scaffold + hello-world deploy pipeline
 - [x] Phase 2: port game engine (strip RTP controller, RTP re-verified 96.452%)
 - [x] Phase 3: D1 schema + auth + virtual-credit balance
 - [x] Phase 4: spin endpoint (single D1 batch transaction, provably-fair seeds per spin)
-- [ ] Phase 5: Durable Objects (jackpot tiers, online presence)
+- [x] Phase 5: Durable Objects (jackpot tiers, online presence)
 - [ ] Phase 6: frontend port
 - [ ] Phase 7: final deploy + custom domain

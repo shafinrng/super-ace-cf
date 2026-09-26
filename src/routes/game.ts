@@ -22,6 +22,8 @@ import { spin } from "../engine/SuperAceGame";
 import { createSeedRng, sha256Hex } from "../engine/rng";
 import { applyFreeSpinResult, BonusRoundState } from "../engine/BonusRound";
 import { FREE_SPIN_MULTIPLIER_STEPS } from "../engine/constants";
+import { JACKPOT_CONTRIBUTION_BPS, TierName, selectJackpotTier } from "../jackpot";
+import { commitJackpot, peekJackpots } from "./jackpot";
 
 const MIN_BET_CENTS = 100; // 1.00 credit
 const MAX_BET_CENTS = 1_000_000; // 10,000.00 credits
@@ -193,6 +195,10 @@ export async function handleSpin(request: Request, env: Env): Promise<Response> 
   let betCents: number;
   let result;
 
+  // One stream per spin: the engine consumes it for the outcome, and the
+  // jackpot draw (base spins) takes the NEXT float from the same stream.
+  const rng = createSeedRng(activeSession.server_seed, activeSession.client_seed, nonce);
+
   if (isFreeSpin) {
     // Free spin: bet is ignored and locked to the triggering spin's amount.
     betCents = bonus.bet_cents;
@@ -203,7 +209,7 @@ export async function handleSpin(request: Request, env: Env): Promise<Response> 
         isFreeSpinMode: true,
         freeSpinMultiplier: FREE_SPIN_MULTIPLIER_STEPS[0],
       },
-      createSeedRng(activeSession.server_seed, activeSession.client_seed, nonce)
+      rng
     );
   } else {
     betCents = body.betCents as number;
@@ -218,12 +224,27 @@ export async function handleSpin(request: Request, env: Env): Promise<Response> 
     }
     result = await spin(
       { userId: user.id, betAmount: betCents / 100, isFreeSpinMode: false },
-      createSeedRng(activeSession.server_seed, activeSession.client_seed, nonce)
+      rng
     );
   }
 
   const winCents = Math.round(result.totalWin * 100);
-  const balanceAfterCents = user.balanceCents - (isFreeSpin ? 0 : betCents) + winCents;
+
+  // Jackpots: base spins only. One extra float from the SAME seed stream
+  // decides the tier — as reproducible as the game outcome itself.
+  let jackpotTier: TierName | null = null;
+  let jackpotCents = 0;
+  let contributeCents = 0;
+  let jackpotPools: Record<string, number> | null = null;
+  if (!isFreeSpin) {
+    jackpotTier = selectJackpotTier(rng());
+    contributeCents = Math.floor((betCents * JACKPOT_CONTRIBUTION_BPS) / 10_000);
+    const pools = await peekJackpots(env);
+    jackpotPools = pools.pools;
+    if (jackpotTier) jackpotCents = pools.pools[jackpotTier];
+  }
+
+  const balanceAfterCents = user.balanceCents - (isFreeSpin ? 0 : betCents) + winCents + jackpotCents;
 
   const statements: D1PreparedStatement[] = [
     // The debit has no WHERE guard on purpose: if it would push the balance
@@ -233,13 +254,13 @@ export async function handleSpin(request: Request, env: Env): Promise<Response> 
       user.id
     ),
     env.DB.prepare("UPDATE users SET balance_cents = balance_cents + ?1 WHERE id = ?2").bind(
-      winCents,
+      winCents + jackpotCents,
       user.id
     ),
     env.DB.prepare(
       `INSERT INTO spins (user_id, session_id, nonce, bet_cents, win_cents, balance_after_cents,
-        is_free_spin, free_spins_awarded, server_seed_hash, client_seed, result_json, created_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)`
+        is_free_spin, free_spins_awarded, jackpot_tier, jackpot_cents, server_seed_hash, client_seed, result_json, created_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)`
     ).bind(
       user.id,
       activeSession.id,
@@ -249,6 +270,8 @@ export async function handleSpin(request: Request, env: Env): Promise<Response> 
       balanceAfterCents,
       isFreeSpin ? 1 : 0,
       isFreeSpin ? 0 : result.freeSpinsAwarded,
+      jackpotTier,
+      jackpotCents,
       activeSession.server_seed_hash,
       activeSession.client_seed,
       JSON.stringify({
@@ -320,6 +343,14 @@ export async function handleSpin(request: Request, env: Env): Promise<Response> 
     throw err;
   }
 
+  // The spin is committed and the player is paid. Only now do the pools
+  // move: this spin's contribution lands, and a hit tier resets (the
+  // winner was already credited from the peeked pool value).
+  if (!isFreeSpin) {
+    const committed = await commitJackpot(env, contributeCents, jackpotTier, user.username);
+    jackpotPools = committed.pools;
+  }
+
   return json({
     ok: true,
     spin: {
@@ -338,6 +369,12 @@ export async function handleSpin(request: Request, env: Env): Promise<Response> 
     winCents,
     balanceCents: balanceAfterCents,
     balance: (balanceAfterCents / 100).toFixed(2),
+    jackpot: {
+      tier: jackpotTier,
+      winCents: jackpotCents,
+      contributionCents: contributeCents,
+      pools: jackpotPools,
+    },
     bonusRound: bonusView,
     fairness: {
       serverSeedHash: activeSession.server_seed_hash,
